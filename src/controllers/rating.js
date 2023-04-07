@@ -7,20 +7,16 @@ export const addRating = async (req, res) => {
   input.userId = me?.id;
   input.gender = me?.gender;
   try {
-    await models.Rating.create(input, async (err, result) => {
-      if (err) throw err;
-      else {
-        const movieData = await models.Movie.findById(res.movieId);
-        movieData.votes++;
-        movieData.totalRating += input?.rate;
-        movieData.rating = (movieData?.totalRating / movieData.votes).toFixed(2);
-        console.log("movieData: ", movieData);
-        await movieData.save();
-        console.log("movieData: ", movieData);
-
-        res.status(200).send(result);
-      }
-    });
+    const movieData = await models.Movie.findById(input?.movieId);
+    if (!movieData) throw new Error("Movie not found");
+    const ratingData = await models.Rating.create(input);
+    if (ratingData) {
+      movieData.votes++;
+      movieData.totalRating += input?.rate;
+      movieData.rating = (movieData?.totalRating / movieData?.votes).toFixed(2);
+      await movieData.save();
+      res.status(200).send(ratingData);
+    }
   } catch (error) {
     res.status(400).send({ error: error.message });
   }
@@ -87,15 +83,15 @@ export const updateRating = async (req, res) => {
   const input = req.body;
   const me = req?.me;
   try {
-    const rating = await models.Rating.findOneAndUpdate({ id: input?.id, userId: me?.id }, input);
+    const rating = await models.Rating.findOne({ _id: input?.id, userId: me?.id });
     if (rating) {
       const movieData = await models.Movie.findById(rating.movieId);
-      movieData.totalRating -= res?.rate;
-      movieData.totalRating += input?.rate;
+      movieData.totalRating -= rating?.rate || 0;
+      movieData.totalRating += input?.rate || 0;
       movieData.rating = (movieData?.totalRating / movieData.votes).toFixed(2);
-      console.log("movieData: ", movieData);
       await movieData.save();
-      console.log("movieData: ", movieData);
+      rating.rate = input?.rate;
+      await rating.save();
       res.status(200).send({ data: rating });
     } else res.status(404).send({ error: "No rating found" });
   } catch (error) {
@@ -105,13 +101,24 @@ export const updateRating = async (req, res) => {
 
 export const deleteRating = async (req, res) => {
   const { id } = req.params;
+  console.log("id: ", id);
   const me = req?.me;
   try {
-    const rating = await models.Rating.findOneAndDelete({ id, userId: me?.id });
+    const rating = await models.Rating.findOneAndRemove({ _id: id, userId: me?.id });
     console.log("rating: ", rating);
-    if (rating) res.status(200).send(true);
-    else res.status(404).send({ error: "No rating found" });
+    // console.log("rating: ", rating);
+    if (rating) {
+      const movieData = await models.Movie.findById(rating.movieId);
+      movieData.totalRating -= rating?.rate || 0;
+      movieData.votes--;
+      movieData.rating = (movieData?.totalRating / movieData.votes).toFixed(2);
+      await movieData.save();
+
+      res.status(200).send(true);
+    } else res.status(404).send({ error: "No rating found" });
   } catch (error) {
     res.status(400).send({ error: error.message });
   }
 };
+
+// 9624340807

@@ -51,7 +51,7 @@ export const updateUser = async (req, res) => {
   try {
     let user = await models.User.findById(me?.id);
     if (user.email != input.email) {
-      const isEmailExists = await models.User.findOne({ email: input?.email, isDeleted: false });
+      const isEmailExists = await models.User.findOne({ email: input?.email });
       if (isEmailExists) throw new Error("This email is already in use");
     }
     user = await models.User.findOneAndUpdate({ _id: me?.id }, input, { new: true });
@@ -80,6 +80,36 @@ export const verifyEmail = async (req, res) => {
     const user = await models.User.findOneAndUpdate({ email }, { isVerified: true }, { new: true });
     if (user) res.status(200).send("Verify done..");
     else res.status(404).send({ error: "No user found" });
+  } catch (error) {
+    res.status(400).send({ error: error.message });
+  }
+};
+export const graphQLCall = async (req, res) => {
+  try {
+    fetch("http://localhost:4444/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `{ getAllUser {
+      id
+      firstName
+    }  }`,
+      }),
+    })
+      .then((response) => {
+        console.log("response: ", response.ok);``
+        if (!response.ok) {
+          throw new Error(`GraphQL request failed with status ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log(data.data.getAllUser);
+        res.status(200).send(data.data.getAllUser);
+      })
+      .catch((e) => {
+        throw new Error("Error response: ", e);
+      });
   } catch (error) {
     res.status(400).send({ error: error.message });
   }

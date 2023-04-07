@@ -1,10 +1,12 @@
 import express from "express";
-import { signUp, login, updateUser, deleteUser, getAllUser, verifyEmail } from "../controllers/user";
+import { signUp, login, updateUser, deleteUser, getAllUser, verifyEmail,graphQLCall } from "../controllers/user";
 import { authentication } from "../auth.js";
 
 const router = new express.Router();
 
 router.post("/signup", signUp);
+
+router.get("/graphQLCall", graphQLCall);
 
 router.post("/login", login);
 
